@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Twitter Clone+</title>
+  <style>
+    body { margin:0; font-family:Arial, Helvetica, sans-serif; background:#f5f8fa; }
+    .container { display:flex; max-width:1200px; margin:auto; }
+    .sidebar { width:220px; padding:20px; background:#fff; border-right:1px solid #ddd; }
+    .sidebar h2 { color:#1da1f2; }
+    .sidebar button { width:100%; padding:12px; border:none; border-radius:20px; background:#1da1f2; color:#fff; font-size:16px; cursor:pointer; }
+    .feed { flex:1; background:#fff; border-right:1px solid #ddd; }
+    .feed-header { padding:15px; font-size:20px; font-weight:bold; border-bottom:1px solid #ddd; }
+    .tweet-box { padding:15px; border-bottom:1px solid #ddd; }
+    .tweet-box textarea { width:100%; border:none; resize:none; font-size:16px; }
+    .tweet-box input { width:100%; margin-top:5px; }
+    .tweet-box button { float:right; padding:8px 18px; background:#1da1f2; border:none; border-radius:20px; color:#fff; cursor:pointer; }
+    .tweet { padding:15px; border-bottom:1px solid #ddd; }
+    .tweet img { max-width:100%; border-radius:10px; margin-top:8px; }
+    .tweet-actions span { margin-right:15px; cursor:pointer; color:#555; }
+    .comments { margin-top:10px; }
+    .comments input { width:100%; padding:5px; }
+    .right { width:300px; padding:20px; background:#fff; }
+    .dark { background:#000; color:#fff; }
+  </style>
+</head>
+<body>
+
+<div id="auth">
+  <div style="max-width:400px;margin:80px auto;background:#fff;padding:20px;border-radius:10px;">
+    <h2>Login / Register</h2>
+    <input id="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <input id="username" placeholder="Username (register only)" />
+    <button onclick="register()">Register</button>
+    <button onclick="login()">Login</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+  <div class="container">
+    <div class="sidebar">
+      <h2>𝕏+</h2>
+      <button onclick="toggleDark()">Dark Mode</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+
+    <div class="feed">
+      <div class="feed-header">Home</div>
+      <div class="tweet-box">
+        <textarea id="tweetInput" rows="3" placeholder="What's happening?"></textarea>
+        <input id="imageUrl" placeholder="Image URL (optional)" />
+        <button onclick="postTweet()">Tweet</button>
+      </div>
+      <div id="tweets"></div>
+    </div>
+
+    <div class="right">
+      <h3>Trends</h3>
+      <p>#Startup</p>
+      <p>#AI</p>
+      <p>#WebDev</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:5000/api";
+let token = null;
+
+function register() {
+  fetch(API + "/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.value, password: password.value, username: username.value })
+  }).then(r => r.json()).then(d => alert(d.message || d.error));
+}
+
+function login() {
+  fetch("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=YOUR_FIREBASE_WEB_API_KEY", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.value, password: password.value, returnSecureToken: true })
+  }).then(res => res.json()).then(data => {
+    token = data.idToken;
+    auth.style.display = 'none';
+    app.style.display = 'block';
+    loadTweets();
+  });
+}
+
+function logout(){ location.reload(); }
+
+function postTweet() {
+  fetch(API + "/tweets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": token },
+    body: JSON.stringify({ content: tweetInput.value, image: imageUrl.value })
+  }).then(()=>{ tweetInput.value=''; imageUrl.value=''; loadTweets(); });
+}
+
+function loadTweets() {
+  fetch(API + "/tweets").then(r=>r.json()).then(data => {
+    tweets.innerHTML='';
+    data.forEach(t => {
+      const div=document.createElement('div');
+      div.className='tweet';
+      div.innerHTML = `
+        <p>${t.content}</p>
+        ${t.image ? `<img src="${t.image}"/>` : ''}
+        <div class="tweet-actions">
+          <span onclick="likeTweet('${t.id}')">❤️ ${t.likes.length}</span>
+          <span onclick="retweet('${t.id}')">🔁</span>
+        </div>
+        <div class="comments">
+          <input placeholder="Comment..." onkeydown="if(event.key==='Enter') comment('${t.id}', this.value)" />
+        </div>`;
+      tweets.appendChild(div);
+    });
+  });
+}
+
+function likeTweet(id){ fetch(API+"/tweets/like/"+id,{method:'POST',headers:{Authorization:token}}).then(loadTweets); }
+function retweet(id){ alert('Retweeted (demo)'); }
+function comment(id,text){ alert('Comment sent: '+text); }
+function toggleDark(){ document.body.classList.toggle('dark'); }
+</script>
+</body>
+</html>
